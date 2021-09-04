@@ -1,0 +1,70 @@
+---
+- hosts: aci
+  connection: local
+  gather_facts: no
+
+  vars:
+    apic_info: &apic_info
+      host:           "{{ aci_host }}"
+      user:           "{{ aci_user }}"
+      password:       "{{ aci_password }}"
+      validate_certs: "{{ aci_valid_cert }}" 
+      use_ssl:        "{{ aci_use_ssl }}" 
+
+  tasks:
+    - name: "1] API 호출 - 모든 인터페이스 상태 수집"
+      aci_rest:
+        <<: *apic_info
+        path: /api/class/ethpmPhysIf.json
+        method: get
+      register: ethpmPhysIf
+
+    - name: "2] API 호출 - 인터페이스의 목록을 수집 (참고: 소요시간을 고려하여 10개만 수집)"
+      aci_rest:
+        <<: *apic_info
+        path: /api/class/l1PhysIf.json?page-size=10     # 수집대상을 10개로 한정. 모든 인터페이스 정보를 수집할 경우 ?page-size 옵션을 제거합니다.
+        method: get
+      register: l1PhysIf
+
+    - name: "3] API 호출 - 개별 인터페이스의 에러 발생 여부 수집"
+      aci_rest:
+        <<: *apic_info
+        path: "/api/node/mo/{{ item }}.json?query-target=children&target-subtree-class=rmonDot3Stats&target-subtree-class=rmonDot1d&target-subtree-class=rmonEtherStats"
+        method: get
+      register: rmon
+      with_items:
+        - "{{ l1PhysIf | json_query('imdata[].l1PhysIf.attributes.dn') }}"
+
+    - name: "4] 수집 데이터를 Json 파일로 저장"
+      copy:
+        content: "{{ item.content | to_nice_json}}"
+        dest:    "{{ item.dest }}"
+      no_log: yes
+      loop:
+        - content:  "{{ ethpmPhysIf | json_query('imdata[].ethpmPhysIf.attributes.{dn:dn, operSt:operSt, operMode:operMode, operSpeed:operSpeed, operDuplex:operDuplex}') }}"
+          dest:     interface_status.json
+        - content:  "{{ rmon | json_query('results[].{item:item, imdata:imdata[]}') }}" 
+          dest:     interfaces_error_counters.json
+
+    - name: "5] Json 파일을 엑셀 파일로 변환 (python 스크립트 사용)"
+      command: python3 files/"{{ item }}"
+      loop:
+        - json2xlsx.py
+        - json2xlsx_err.py
+
+    - name: "6] 엑셀파일 첨부하여 이메일 전송"
+      mail:
+        host:     "{{ outlook_host }}"
+        port:     "{{ outlook_port }}"
+        username: "{{ outlook_username }}"
+        password: "{{ outlook_password }}"
+        from:     "{{ outlook_username }}"
+        to :      "{{ outlook_receiver }}"
+        subject:  "[Cisco CS Lab] 인터페이스 상태/에러 정보"
+        subtype:  html
+        body:     "{{ outlook_body }}"
+        secure:   starttls
+        headers:  "Content-type=text/html"
+        attach: 
+          - "./인터페이스_상태.xlsx"
+          - "./인터페이스_에러.xlsx"
