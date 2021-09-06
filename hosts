@@ -2,7 +2,7 @@
 apic
 
 [aci:vars]
-aci_host=10.72.85.21
+aci_host=198.18.133.200
 aci_port=443
 aci_user=labuser
 aci_password=labuser
