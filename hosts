@@ -7,7 +7,7 @@ aci_port=443
 aci_user=labuser
 aci_password=labuser
 aci_valid_cert=false
-aci_use_ssl=false
+aci_use_ssl=true
 
 outlook_host="smtp.office365.com"
 outlook_port=587
