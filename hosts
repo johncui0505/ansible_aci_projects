@@ -4,8 +4,8 @@ apic
 [aci:vars]
 aci_host=198.18.133.200
 aci_port=443
-aci_user=labuser
-aci_password=labuser
+aci_user=admin
+aci_password=C1sco12345
 aci_valid_cert=false
 aci_use_ssl=false
 
