@@ -47,7 +47,7 @@
           dest:     interfaces_error_counters.json
 
     - name: "5] Json 파일을 엑셀 파일로 변환 (python 스크립트 사용)"
-      command: python files/"{{ item }}"
+      command: python3 files/"{{ item }}"
       loop:
         - json2xlsx.py
         - json2xlsx_err.py
